@@ -1,0 +1,154 @@
+// Prisma schema for Villa Booking Platform Puncak (VlaNest)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model VillaOwner {
+  id           String   @id @default(cuid())
+  name         String
+  phone_number String   @unique // Login credential via phone number
+  notes        String?
+  created_at   DateTime @default(now())
+
+  villas Villa[]
+}
+
+model Villa {
+  id                 String                @id @default(cuid())
+  title              String
+  slug               String                @unique
+  location_area      String // e.g., Cisarua, Cipanas, Megamendung, Ciawi
+  description        String
+  max_guests         Int
+  bedrooms           Int
+  bathrooms          Int
+  base_price_weekday Int
+  base_price_weekend Int
+  security_deposit   Int
+  min_stay_default   Int                   @default(1)
+  rules_text         String
+  google_maps_url    String?
+  owner_id           String?
+  created_at         DateTime              @default(now())
+
+  owner            VillaOwner?           @relation(fields: [owner_id], references: [id], onDelete: SetNull)
+  photos           VillaPhoto[]
+  amenities        VillaAmenity[]
+  special_rates    VillaSpecialRate[]
+  blocked_dates    CalendarBlockedDate[]
+  bookings         Booking[]
+  maintenance_logs VillaMaintenanceLog[]
+}
+
+model VillaPhoto {
+  id               String  @id @default(cuid())
+  villa_id         String
+  photo_url        String
+  virtual_tour_url String?
+  is_primary       Boolean @default(false)
+
+  villa Villa @relation(fields: [villa_id], references: [id], onDelete: Cascade)
+}
+
+model VillaAmenity {
+  id           String @id @default(cuid())
+  villa_id     String
+  amenity_name String // e.g., Private Pool, Wifi, Karaoke, View Gunung, BBQ, Bus Access, Water Heater
+
+  villa Villa @relation(fields: [villa_id], references: [id], onDelete: Cascade)
+}
+
+model VillaSpecialRate {
+  id                     String    @id @default(cuid())
+  villa_id               String
+  event_name             String // e.g., Tahun Baru, Idul Fitri, Long Weekend
+  start_date             DateTime
+  end_date               DateTime
+  custom_price_per_night Int
+  min_stay_override      Int?
+
+  villa Villa @relation(fields: [villa_id], references: [id], onDelete: Cascade)
+}
+
+model CalendarBlockedDate {
+  id           String   @id @default(cuid())
+  villa_id     String
+  blocked_date DateTime
+  reason       String? // e.g., Offline Booking, Maintenance, Private Event, Direct Owner
+
+  villa Villa @relation(fields: [villa_id], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id                      String   @id @default(cuid())
+  booking_code            String   @unique // e.g., VLA-8921
+  villa_id                String
+  guest_name              String
+  whatsapp_number         String
+  check_in_date           DateTime
+  check_out_date          DateTime
+  total_nights            Int
+  total_base_price        Int
+  security_deposit_amount Int
+  catering_package        String? // e.g. "Paket BBQ Night Premium (25 Pax)"
+  catering_amount         Int      @default(0)
+  special_requests        String?
+  grand_total             Int
+  payment_type            String // "FULL" | "DP_30" | "DP_50"
+  paid_amount             Int
+  remaining_amount        Int
+  payment_status          String   @default("PENDING") // "PENDING" | "PAID_DP" | "PAID_FULL" | "CANCELLED"
+  proof_of_payment_url    String?
+  deposit_refunded        Boolean  @default(false)
+  created_at              DateTime @default(now())
+
+  villa Villa @relation(fields: [villa_id], references: [id], onDelete: Cascade)
+}
+
+model VillaMaintenanceLog {
+  id           String   @id @default(cuid())
+  villa_id     String
+  item_name    String // e.g., "AC R. Utama bocor", "Kolam kurang kaporit"
+  description  String?
+  estimated_cost Int    @default(0)
+  status       String   @default("NEED_ATTENTION") // "NEED_ATTENTION" | "IN_PROGRESS" | "COMPLETED"
+  created_at   DateTime @default(now())
+
+  villa Villa @relation(fields: [villa_id], references: [id], onDelete: Cascade)
+}
+
+model ResortSetting {
+  id                  String   @id @default("default")
+  resort_name         String   @default("VlaNest Puncak Luxury Resort")
+  bca_account_number  String   @default("8830-1928-331")
+  bca_account_holder  String   @default("PT VLANEST PUNCAK RESORT")
+  mandiri_number      String   @default("133-00-9821-4431")
+  mandiri_holder      String   @default("PT VLANEST PUNCAK RESORT")
+  cs_whatsapp         String   @default("6281298765432")
+  contact_email       String   @default("reservation@vlanestpuncak.id")
+  admin_password_hash String? // Optional custom password hash
+  updated_at          DateTime @updatedAt
+}
+
+model PromoCode {
+  id             String   @id @default(cuid())
+  code           String   @unique // e.g., PUNCAKCERIA, ROMBONGAN500K
+  discount_type  String   @default("FIXED_AMOUNT") // "FIXED_AMOUNT" | "PERCENTAGE"
+  discount_value Int // e.g., 200000 or 10 for 10%
+  min_spend      Int      @default(0)
+  active         Boolean  @default(true)
+  created_at     DateTime @default(now())
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  action     String // e.g., "LOGIN_SUCCESS", "LOGIN_FAILED", "CHANGE_PASSWORD", "UPDATE_VILLA"
+  details    String
+  created_at DateTime @default(now())
+}
